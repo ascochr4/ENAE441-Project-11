@@ -76,19 +76,46 @@ for i = 0:numsets/3-1
 end
 
 %% Validation of initial orbit determination
-smallset = opt3satCset3(50:20:1000,:);
-force_model_20x20_1m2_cr1 = force_model_third_body(20,20,0,0,1,1,1000);
-for i = 1
-    sat.ephemeris(i) = propagate_to_times(posvel(i), smallset.datetime, force_model_20x20_1m2_cr1);
+smallset = opt3satCset3(50:40:1000,:);
+force_model_4x4_1m2_cr1 = force_model_third_body(4,4,0,0,1,1,1000);
+for i = 1:numsets/3
+    sat.ephemeris(i) = propagate_to_times(posvel(i), smallset.datetime, force_model_4x4_1m2_cr1);
 end
 %%
-sat.aer = aer(sat.ephemeris)
+N = height(smallset);
+for j = 1:numsets/3
+    sum = 0;
+    for i = 1:N
+    sat.aer(i) = eci_to_azelrn(sat.ephemeris(j).epoch(i),sat.ephemeris(j).position_m(i,:),chile.lla);
+    resaz(i,j) = smallset.azimuth_deg(i) - sat.aer(i).azimuth_deg;
+    resel(i,j) = smallset.elevation_deg(i) - sat.aer(i).elevation_deg;
+    sum = sum + resaz(i,j)^2+resel(i,j)^2;
+    end
+res(j) = sqrt(1/N*sum);
+end
+% Second Data Set Lowest RMS
 %% Orbit Estimation
 force_model_4x4_1m2_cr1 = force_model_third_body(4,4,0,0,1,1,1000);
 oapchile = make_station("OAP-Chile", lat, long, alt);
 fourcols = ["observation_number" "datetime"...
 "azimuth_deg" "elevation_deg"];
 night1_early_25pts = opt2satCset3([1:4:100],fourcols);
-od_night1_early = determine_orbit(posvel(1), oapchile,...
+od_night1_early = determine_orbit(posvel(2), oapchile,...
 night1_early_25pts, force_model_4x4_1m2_cr1)
-od_night1_early.estimated.position_m
+sat2.estimated = od_night1_early.estimated;
+%%
+smallset = opt3satCset3(50:40:1000,:);
+force_model_4x4_1m2_cr1 = force_model_third_body(4,4,0,0,1,1,1000);
+sat2.ephemeris(i) = propagate_to_times(sat2.estimated, smallset.datetime, force_model_4x4_1m2_cr1);
+%%
+N = height(smallset);
+for j = 1
+    sum = 0;
+    for i = 1:N
+    sat2.aer(i) = eci_to_azelrn(sat2.ephemeris.epoch(i),sat2.ephemeris(j).position_m(i,:),chile.lla);
+    resaz(i,j) = smallset.azimuth_deg(i) - sat2.aer(i).azimuth_deg;
+    resel(i,j) = smallset.elevation_deg(i) - sat2.aer(i).elevation_deg;
+    sum = sum + resaz(i,j)^2+resel(i,j)^2;
+    end
+res(j) = sqrt(1/N*sum);
+end
