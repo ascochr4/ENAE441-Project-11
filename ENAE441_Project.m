@@ -6,16 +6,28 @@ load('opt2satCset3');
 load('opt3satCset3');
 
 %% Initial Orbit Determination
+imax = height(opt2satCset3);
 
-set1 = opt2satCset3([5 15 30],:);
-set2 = opt2satCset3([50 70 90],:);
-set3 = opt2satCset3([120 140 160],:);
-set4 = opt2satCset3([100 400 700], :);
-set5 = opt2satCset3([200 525 850],:);
-set6 = opt2satCset3([850 870 890],:); 
-set7 = opt2satCset3([885 900 915],:);
+set1 = opt2satCset3([68 455 892],:);
+set2 = opt2satCset3([50 70 90],:); %good
+set3 = opt2satCset3([120 234 567],:);
+set4 = opt2satCset3([20 80 150], :);
+set5 = opt2satCset3([450 480 520],:);
+set6 = opt2satCset3([800 840 880],:); %bestest
+set7 = opt2satCset3([760 830 900],:);
+set8 = opt2satCset3([600 630 660],:); %best
 
-sets = [set1; set2; set3; set4; set5; set6; set7];
+% set1 = opt2satCset3([5 25 50],:);
+% set2 = opt2satCset3([50 70 90],:); %good
+% set3 = opt2satCset3([120 140 160],:);
+% set4 = opt2satCset3([100 400 700], :);
+% set5 = opt2satCset3([200 525 850],:);
+% set6 = opt2satCset3([700 850 900],:); 
+% set7 = opt2satCset3([855 895 915],:);
+% set8 = opt2satCset3([600 630 660],:); %best
+
+
+sets = [set1; set2; set3; set4; set5; set6; set7; set8];
 numsets = size(sets,1);
 
 lat = sets.site_latitude_deg(1);
@@ -66,17 +78,18 @@ for i = 0:numsets/3-1
     W = N/norm(N);
     Q = S/norm(S);
     P = cross(Q,W);
-    e = norm(S)/norm(D)
+    e = norm(S)/norm(D);
     p = norm(N)/norm(D);
-    a = p/(1-e^2)
+    a = p/(1-e^2);
     n = cross([0;0;1],W)/norm(cross([0;0;1],W));
-    r2dot = sqrt(mu/(norm(N)*norm(D)))*(cross(D,r2/norm(r2))+S)
+    r2dot = sqrt(mu/(norm(N)*norm(D)))*(cross(D,r2/norm(r2))+S);
     oe(i+1,:) = rv2oe1(r2,r2dot,mu)
     posvel(i+1) = pvt(t2,r2*1e3,r2dot*1e3);
 end
 
 %% Validation of initial orbit determination
 smallset = opt3satCset3(50:40:1000,:);
+
 force_model_4x4_1m2_cr1 = force_model_third_body(4,4,0,0,1,1,1000);
 for i = 1:numsets/3
     sat.ephemeris(i) = propagate_to_times(posvel(i), smallset.datetime, force_model_4x4_1m2_cr1);
@@ -93,29 +106,52 @@ for j = 1:numsets/3
     end
 res(j) = sqrt(1/N*sum);
 end
-% Second Data Set Lowest RMS
+%%
+dtepoch = seconds(smallset.datetime-smallset.datetime(1));
+plot(dtepoch,resaz)
+title('az')
+figure
+plot(dtepoch, resel)
+title('el')
+% Second Data Set Lowest RMS 0.5
 %% Orbit Estimation
 force_model_4x4_1m2_cr1 = force_model_third_body(4,4,0,0,1,1,1000);
 oapchile = make_station("OAP-Chile", lat, long, alt);
 fourcols = ["observation_number" "datetime"...
 "azimuth_deg" "elevation_deg"];
-night1_early_25pts = opt2satCset3([1:4:100],fourcols);
-od_night1_early = determine_orbit(posvel(2), oapchile,...
-night1_early_25pts, force_model_4x4_1m2_cr1)
-sat2.estimated = od_night1_early.estimated;
-%%
-smallset = opt3satCset3(50:40:1000,:);
+night1_spread_26pts = opt2satCset3([100:30:850],fourcols);
+% night1_late_25pts = opt2satCset3([800:4:900],fourcols);
+od_night1_spread = determine_orbit(posvel(6), oapchile,...
+night1_spread_26pts, force_model_4x4_1m2_cr1)
+sat2.estimated = od_night1_spread.estimated;
+% night1_early_25pts = opt2satCset3([1:4:100],fourcols);
+% od_night1_early = determine_orbit(posvel(8), oapchile,...
+% night1_early_25pts, force_model_4x4_1m2_cr1)
+% sat2.estimated = od_night1_early.estimated;
+
+%% Comparsion of Force Models
+
+%% Orbit Validation of Estimation
+clear resel resaz res
+smallset = opt3satCset3(10:40:1000,:);
 force_model_4x4_1m2_cr1 = force_model_third_body(4,4,0,0,1,1,1000);
-sat2.ephemeris(i) = propagate_to_times(sat2.estimated, smallset.datetime, force_model_4x4_1m2_cr1);
+sat2.ephemeris = propagate_to_times(sat2.estimated, smallset.datetime, force_model_4x4_1m2_cr1);
 %%
 N = height(smallset);
 for j = 1
     sum = 0;
     for i = 1:N
-    sat2.aer(i) = eci_to_azelrn(sat2.ephemeris.epoch(i),sat2.ephemeris(j).position_m(i,:),chile.lla);
-    resaz(i,j) = smallset.azimuth_deg(i) - sat2.aer(i).azimuth_deg;
-    resel(i,j) = smallset.elevation_deg(i) - sat2.aer(i).elevation_deg;
-    sum = sum + resaz(i,j)^2+resel(i,j)^2;
+    sat2.aer(i) = eci_to_azelrn(sat2.ephemeris.epoch(i),sat2.ephemeris.position_m(i,:),chile.lla);
+    resaz(i) = smallset.azimuth_deg(i) - sat2.aer(i).azimuth_deg;
+    resel(i) = smallset.elevation_deg(i) - sat2.aer(i).elevation_deg;
+    sum = sum + resaz(i)^2+resel(i)^2;
     end
-res(j) = sqrt(1/N*sum);
+res = sqrt(1/N*sum);
 end
+%% 
+dtepoch = seconds(sat2.ephemeris.epoch-sat2.ephemeris.epoch(1));
+plot(dtepoch,resaz)
+title('az')
+figure
+plot(dtepoch, resel)
+title('el')
