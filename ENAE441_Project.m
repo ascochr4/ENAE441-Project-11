@@ -9,13 +9,13 @@ load('opt3satCset3');
 imax = height(opt2satCset3);
 
 set1 = opt2satCset3([68 455 892],:);
-set2 = opt2satCset3([50 70 90],:); %good
+set2 = opt2satCset3([50 70 90],:); %bestest
 set3 = opt2satCset3([120 234 567],:);
 set4 = opt2satCset3([20 80 150], :);
 set5 = opt2satCset3([450 480 520],:);
-set6 = opt2satCset3([800 840 880],:); %bestest
+set6 = opt2satCset3([800 840 880],:); %best
 set7 = opt2satCset3([760 830 900],:);
-set8 = opt2satCset3([600 630 660],:); %best
+set8 = opt2satCset3([600 630 660],:); %good
 
 % set1 = opt2satCset3([5 25 50],:);
 % set2 = opt2satCset3([50 70 90],:); %good
@@ -35,7 +35,7 @@ long = sets.site_longitude_deg(1);
 alt = set1.site_altitude_m(1);
 chile.lla = latlonalt_deg(lat, long, alt);
 for i = 0:numsets/3-1
-    % Gibbs
+    % Gauss
     R = zeros(3,3);
     L = zeros(3,3);
     t2 = sets.datetime(3*i+2);
@@ -90,9 +90,9 @@ end
 %% Validation of initial orbit determination
 smallset = opt3satCset3(50:40:1000,:);
 
-force_model_4x4_1m2_cr1 = force_model_third_body(4,4,0,0,1,1,1000);
+force_model_20x20 = force_model_third_body(20,20,0,0,40,1.2,4000);
 for i = 1:numsets/3
-    sat.ephemeris(i) = propagate_to_times(posvel(i), smallset.datetime, force_model_4x4_1m2_cr1);
+    sat.ephemeris(i) = propagate_to_times(posvel(i), smallset.datetime, force_model_20x20);
 end
 %%
 N = height(smallset);
@@ -115,14 +115,14 @@ plot(dtepoch, resel)
 title('el')
 % Second Data Set Lowest RMS 0.5
 %% Orbit Estimation
-force_model_4x4_1m2_cr1 = force_model_third_body(4,4,0,0,1,1,1000);
+force_model_20x20 = force_model_third_body(4,4,0,0,1,1,1000);
 oapchile = make_station("OAP-Chile", lat, long, alt);
 fourcols = ["observation_number" "datetime"...
 "azimuth_deg" "elevation_deg"];
 night1_spread_26pts = opt2satCset3([100:30:850],fourcols);
 % night1_late_25pts = opt2satCset3([800:4:900],fourcols);
 od_night1_spread = determine_orbit(posvel(6), oapchile,...
-night1_spread_26pts, force_model_4x4_1m2_cr1)
+night1_spread_26pts, force_model_20x20)
 sat2.estimated = od_night1_spread.estimated;
 % night1_early_25pts = opt2satCset3([1:4:100],fourcols);
 % od_night1_early = determine_orbit(posvel(8), oapchile,...
@@ -130,12 +130,24 @@ sat2.estimated = od_night1_spread.estimated;
 % sat2.estimated = od_night1_early.estimated;
 
 %% Comparsion of Force Models
-
+night1_early_25pts = opt2satCset3([1:4:100],fourcols);
+force_model_2x0 = force_model(2,0,0,0,0,0,1000);
+od_night1_early = determine_orbit(posvel(6), oapchile,...
+night1_early_25pts, force_model_2x0)
+sat2.estimated = od_night1_early.estimated;
+%% Solar Radiation Pressure
+night1_early_50pts = opt2satCset3([1:2:100],fourcols);
+force_model_2x2_40m2_cr12_4000 = force_model_third_body(2,2,0,0,40,1.2,4000);
+od_night1_early = determine_orbit(posvel(2), oapchile,...
+night1_early_50pts, force_model_2x2_40m2_cr12_4000)
+sat2.estimated = od_night1_early.estimated;
 %% Orbit Validation of Estimation
 clear resel resaz res
 smallset = opt3satCset3(10:40:1000,:);
-force_model_4x4_1m2_cr1 = force_model_third_body(4,4,0,0,1,1,1000);
-sat2.ephemeris = propagate_to_times(sat2.estimated, smallset.datetime, force_model_4x4_1m2_cr1);
+force_model_20x20 = force_model_third_body(20,20,0,0,40,1.2,4000);
+sat2.ephemeris = propagate_to_times(sat2.estimated, smallset.datetime, force_model_20x20);
+% force_model_4x4_1m2_cr1 = force_model_third_body(4,4,0,0,1,1,1000);
+% sat2.ephemeris = propagate_to_times(sat2.estimated, smallset.datetime, force_model_4x4_1m2_cr1);
 %%
 N = height(smallset);
 for j = 1
@@ -149,9 +161,12 @@ for j = 1
 res = sqrt(1/N*sum);
 end
 %% 
+figure(1)
+hold on
 dtepoch = seconds(sat2.ephemeris.epoch-sat2.ephemeris.epoch(1));
 plot(dtepoch,resaz)
 title('az')
-figure
+figure(2)
+hold on
 plot(dtepoch, resel)
 title('el')
