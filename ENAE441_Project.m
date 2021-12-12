@@ -7,7 +7,6 @@ load('opt3satCset3');
 
 %% Initial Orbit Determination
 imax = height(opt2satCset3);
-
 set1 = opt2satCset3([68 455 892],:);
 set2 = opt2satCset3([50 70 90],:); %good
 set3 = opt2satCset3([120 234 567],:);
@@ -83,7 +82,7 @@ for i = 0:numsets/3-1
     a = p/(1-e^2);
     n = cross([0;0;1],W)/norm(cross([0;0;1],W));
     r2dot = sqrt(mu/(norm(N)*norm(D)))*(cross(D,r2/norm(r2))+S);
-    oe(i+1,:) = rv2oe1(r2,r2dot,mu)
+    oe(i+1,:) = rv2oe1(r2,r2dot,mu);
     posvel(i+1) = pvt(t2,r2*1e3,r2dot*1e3);
 end
 
