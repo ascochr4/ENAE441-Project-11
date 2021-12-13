@@ -134,12 +134,70 @@ force_model_2x0 = force_model(2,0,0,0,0,0,1000);
 od_night1_early = determine_orbit(posvel(6), oapchile,...
 night1_early_25pts, force_model_2x0)
 sat2.estimated = od_night1_early.estimated;
+%% Comparing RMS for different gravity forces in force model
+force_model_2x2_1m2_cr1 = force_model(2,2,0,0,1,1,1000);
+force_model_2x0_1m2_cr1 = force_model(2,0,0,0,1,1,1000);
+force_model_20x20_1m2_cr1 = force_model(20,20,0,0,1,1,1000);
+smallset = opt3satCset3(50:40:1000,:);
+sat_fm_2x2.ephemeris = propagate_to_times(posvel(6), smallset.datetime, force_model_2x2_1m2_cr1);
+sat_fm_2x0.ephemeris = propagate_to_times(posvel(6), smallset.datetime, force_model_2x0_1m2_cr1);
+sat_fm_20x20.ephemeris = propagate_to_times(posvel(6), smallset.datetime, force_model_20x20_1m2_cr1);
+
+N = height(smallset);
+sum_2x2 = 0;
+sum_2x0 = 0;
+sum_20x20 = 0;
+for i = 1:N
+    sat_fm_2x2.aer(i) = eci_to_azelrn(sat_fm_2x2.ephemeris.epoch(i), sat_fm_2x2.ephemeris.position_m(i,:),chile.lla);
+    sat_fm_2x0.aer(i) = eci_to_azelrn(sat_fm_2x0.ephemeris.epoch(i), sat_fm_2x0.ephemeris.position_m(i,:),chile.lla);
+    sat_fm_20x20.aer(i) = eci_to_azelrn(sat_fm_20x20.ephemeris.epoch(i), sat_fm_20x20.ephemeris.position_m(i,:),chile.lla);
+    resaz_fm_2x2(i,1) = smallset.azimuth_deg(i) - sat_fm_2x2.aer(i).azimuth_deg;
+    resaz_fm_2x0(i,1) = smallset.azimuth_deg(i) - sat_fm_2x0.aer(i).azimuth_deg;
+    resaz_fm_20x20(i,1) = smallset.azimuth_deg(i) - sat_fm_20x20.aer(i).azimuth_deg;
+    resel_fm_2x2(i,1) = smallset.elevation_deg(i) - sat_fm_2x2.aer(i).elevation_deg;
+    resel_fm_2x0(i,1) = smallset.elevation_deg(i) - sat_fm_2x0.aer(i).elevation_deg;
+    resel_fm_20x20(i,1) = smallset.elevation_deg(i) - sat_fm_20x20.aer(i).elevation_deg;
+    sum_2x2 = sum_2x2 + resaz_fm_2x2(i,1)^2+resel_fm_2x2(i,1)^2;
+    sum_2x0 = sum_2x0 + resaz_fm_2x0(i,1)^2+resel_fm_2x0(i,1)^2;
+    sum_20x20 = sum_20x20 + resaz_fm_20x20(i,1)^2+resel_fm_20x20(i,1)^2;
+end
+res_fm_2x2 = sqrt(1/N*sum_2x2);
+res_fm_2x0 = sqrt(1/N*sum_2x0);
+res_fm_20x20 = sqrt(1/N*sum_20x20);
+%2x2 has smallest RMS
+
 %% Solar Radiation Pressure
 night1_early_50pts = opt2satCset3([1:2:100],fourcols);
 force_model_2x2_40m2_cr12_4000 = force_model_third_body(2,2,0,0,40,1.2,4000);
 od_night1_early = determine_orbit(posvel(2), oapchile,...
 night1_early_50pts, force_model_2x2_40m2_cr12_4000)
 sat2.estimated = od_night1_early.estimated;
+%% Comparing RMS for different radiation pressures in force model
+for i=0:4
+    fm_kg(i+1) = force_model_third_body(2,2,0,0,1,1.2,1000+500*i);
+    fm_srp(i+1) = force_model_third_body(2,2,0,0,11+10*i,1.2,1000);
+    sat_kg.ephemeris(i+1) = propagate_to_times(posvel(6), smallset.datetime, fm_kg(i+1));
+    sat_srp.ephemeris(i+1) = propagate_to_times(posvel(6), smallset.datetime, fm_srp(i+1));
+end
+N = height(smallset);
+
+sum_kg = 0;
+sum_srp = 0;
+for j=1:5
+    for i = 1:N
+        sat_kg.aer(i) = eci_to_azelrn(sat_kg.ephemeris(j).epoch(i), sat_kg.ephemeris(j).position_m(i,:),chile.lla);
+        resaz_kg(i,j) = smallset.azimuth_deg(i) - sat_kg.aer(i).azimuth_deg;
+        resel_kg(i,j) = smallset.elevation_deg(i) - sat_kg.aer(i).elevation_deg;
+        sum_kg = sum_kg + resaz_kg(i,j)^2 + resel_kg(i,j)^2;
+        sat_srp.aer(i) = eci_to_azelrn(sat_srp.ephemeris(j).epoch(i), sat_srp.ephemeris(j).position_m(i,:),chile.lla);
+        resaz_srp(i,j) = smallset.azimuth_deg(i) - sat_srp.aer(i).azimuth_deg;
+        resel_srp(i,j) = smallset.elevation_deg(i) - sat_srp.aer(i).elevation_deg;
+        sum_srp = sum_srp + resaz_srp(i,j)^2 + resel_srp(i,j)^2;
+    end
+    res_kg(j) = sqrt(1/N*sum_kg);
+    res_srp(j) = sqrt(1/N*sum_srp);
+end
+% lowest RMS occurs with force model (2,2,0,0,1,1.2,1000)
 %% Orbit Validation of Estimation
 clear resel resaz res
 smallset = opt3satCset3(10:40:1000,:);
